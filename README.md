@@ -1,5 +1,5 @@
 # UnrealEssenceLite
-Simple Lite version
+Simple Lite version (Supported UE 5.7.4 and other)
 
 Включает в себя следующие модули (со временем будет дополнено) ;
 
