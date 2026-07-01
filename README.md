@@ -5,11 +5,7 @@ Simple Lite version (Supported UE 5.7.4 and other)
 
 1. TypeWriter - печаталка бегущего текста, с поддержкой любого набора символов, рандомно их выбирает, может быть запущена как в прямом так и обратном направлении, с разной скоростью итд.. 
 
-
-
-
-
-# TypingEffectWidget — UMG-виджет «печати случайных символов»
+# TypingEffectWidget — UMG-виджет «печати символов»
 
 > Часть проекта **UnrealEssence** · Модуль `UnrealEssenceRuntime` · Папка `UI`
 > Совместимость: **Unreal Engine 5.7.4** · C++17 · без внешних зависимостей
@@ -18,18 +14,31 @@ Simple Lite version (Supported UE 5.7.4 and other)
 
 ## 📖 Описание
 
-`UTypingEffectWidget` — лёгкий UMG-виджет, реализующий декоративный эффект
-«печати» случайных символов в `UTextBlock`. Каждый тик таймера к текущей строке
-добавляется один случайный символ из заданного алфавита; при превышении
-максимальной длины самый старый символ удаляется — получается эффект
-**«бегущей строки»**.
+`UTypingEffectWidget` — гибкий UMG-виджет, реализующий декоративный эффект
+«печати» символов в `UTextBlock`. Поддерживает **два режима работы**, **два направления печати**,
+**автоматическое выравнивание** и **события завершения**.
+
+### Режимы работы
+
+| Режим | Описание |
+|---|---|
+| **Случайный** (`bRandomIsActive = true`) | Каждый символ выбирается случайно из `AllowedChars`. Подходит для "хакерских" терминалов, фоновой "матрицы". |
+| **Последовательный** (`bRandomIsActive = false`) | Символы читаются по порядку из `AllowedChars`. При достижении конца строки вызывается делегат `OnAllAllowedCharsIsEndTyping`. Подходит для вывода конкретного текста. |
+
+### Направления печати
+
+| Направление | Описание |
+|---|---|
+| **LeftToRight** | Новые символы добавляются **справа**, старые удаляются **слева**. Текст "растёт" вправо. |
+| **RightToLeft** | Новые символы добавляются **слева**, старые удаляются **справа**. Текст "растёт" влево. |
 
 Типичные сценарии использования:
 
-- «хакерский» терминал / консоль в UI;
-- индикатор ожидания / загрузки;
-- фоновая «матрица» из HEX / бинарного кода;
-- декоративные подписи к объектам в мире.
+- «Хакерский» терминал / консоль в UI.
+- Индикатор ожидания / загрузки.
+- Фоновая «матрица» из HEX / бинарного кода.
+- Вывод конкретного текста с эффектом печати (последовательный режим).
+- Декоративные подписи к объектам в мире.
 
 ---
 
@@ -40,7 +49,11 @@ Simple Lite version (Supported UE 5.7.4 and other)
 | 🎯 Настраиваемый алфавит | Любая строка: `01`, `ABCD1234!@#$`, HEX, кириллица, эмодзи |
 | ⏱ Регулируемая скорость | `TypingInterval` в секундах (по умолчанию `0.05f`) |
 | 📏 Ограничение длины | `MaxLineLength` — эффект «бегущей строки» |
-| 🔁 Старт / Стоп | BlueprintCallable-функции, безопасно вызывать повторно |
+| 🔄 Два режима | Случайный и последовательный вывод символов |
+| ➡️ Два направления | LeftToRight и RightToLeft с автоматическим выравниванием |
+| 🔔 События | Делегат `OnAllAllowedCharsIsEndTyping` при завершении последовательного вывода |
+| 🛑 Автоостановка | Автоматическая остановка после вывода всей строки (`bUseAutoStopTyping`) |
+| 🔁 Старт / Стоп | BlueprintCallable-функции с параметрами, безопасно вызывать повторно |
 | 🛡 Null-safe | Отсутствие `DisplayText` не приводит к крашу |
 | 🧮 Без NaN | Нет делений и операций, способных породить некорректные float |
 | 🧵 GameThread-only | Вся логика идёт через `FTimerManager` — никаких гонок данных |
@@ -59,7 +72,7 @@ UnrealEssence/
             │       └── TypingEffectWidget.h
             └── Private/
                 └── UI/
-                     └── TypingEffectWidget.cpp
+                    └── TypingEffectWidget.cpp
 ```
 
 ---
@@ -75,22 +88,42 @@ UnrealEssence/
 4. Настройте переменные в *Details*:
    - `Typing Interval` — задержка между символами (сек);
    - `Max Line Length` — макс. видимая длина строки;
-   - `Allowed Chars` — алфавит.
+   - `Allowed Chars` — алфавит или текст для вывода;
+   - `Current Direction` — направление печати;
+   - `Random Is Active` — режим работы (случайный/последовательный);
+   - `Justify Is Auto` — автоматическое выравнивание;
+   - `Use Auto Stop Typing` — автоостановка после вывода всей строки.
 
 ### 2. Запуск из Blueprint
+
+#### Пример 1: Случайный режим (фоновая "матрица")
 
 ```
 Event BeginPlay
    → Create Widget (TypingEffectWidgetBP)
    → Add to Viewport
-   → Start Typing Effect
+   → Start Typing Effect (bRandomize = true, bStartFromClear = true)
 ```
 
-Для остановки:
+#### Пример 2: Последовательный режим (вывод текста)
 
 ```
-Event EndPlay / On Button Clicked
-   → Stop Typing Effect
+Event BeginPlay
+   → Set Allowed Chars = "HELLO WORLD"
+   → Set Random Is Active = false
+   → Set Use Auto Stop Typing = true
+   → Create Widget (TypingEffectWidgetBP)
+   → Add to Viewport
+   → Start Typing Effect (bRandomize = false, bStartFromClear = true)
+   → Bind Event to On All Allowed Chars End Typing
+      → Print String "Printing complete!"
+```
+
+#### Пример 3: Смена направления
+
+```
+Event On Button Clicked
+   → Change Direction
 ```
 
 ### 3. Запуск из C++
@@ -98,44 +131,92 @@ Event EndPlay / On Button Clicked
 ```cpp
 if (UTypingEffectWidget* Widget = CreateWidget<UTypingEffectWidget>(GetWorld(), Subclass))
 {
-    Widget->TypingInterval  = 0.03f;
-    Widget->MaxLineLength   = 60;
-    Widget->AllowedChars    = TEXT("0123456789ABCDEF");
+    // Настройка параметров
+    Widget->TypingInterval     = 0.03f;
+    Widget->MaxLineLength      = 60;
+    Widget->AllowedChars       = TEXT("0123456789ABCDEF");
+    Widget->CurrentDirection   = ETypingDirection::LeftToRight;
+    Widget->bRandomIsActive    = false;  // Последовательный режим
+    Widget->bJustifyIsAuto     = true;   // Автовыравнивание
+    Widget->bUseAutoStopTyping = true;   // Автоостановка
+
+    // Подписка на событие
+    Widget->OnAllAllowedCharsIsEndTyping.AddDynamic(this, &UMyClass::OnTypingComplete);
+
     Widget->AddToViewport();
-    Widget->StartTypingEffect();
+    Widget->StartTypingEffect(false, true);  // Последовательный режим, начать с чистой строки
 }
 ```
 
 ---
 
 ## 🧩 API
+
 ### Публичные методы
 
-| Метод | Описание |
+| Метод | Параметры | Описание |
+|---|---|---|
+| `void StartTypingEffect(bool bRandomize = true, bool bStartFromClear = false)` | `bRandomize`: режим работы (случайный/последовательный)<br>`bStartFromClear`: очистить строку перед запуском | Запускает таймер. Если `bJustifyIsAuto = true`, обновляет выравнивание. Повторный вызов перезапускает эффект. |
+| `void StopTypingEffect(bool bClear = false)` | `bClear`: очистить строку после остановки | Останавливает таймер. Если `bClear = true`, также сбрасывает `CurrentLine`. |
+| `void ChangeDirection()` | — | Переключает направление на противоположное. Если `bJustifyIsAuto = true`, обновляет выравнивание. |
+| `void SetDirection(ETypingDirection NewDirection)` | `NewDirection`: новое направление | Устанавливает указанное направление. Если `bJustifyIsAuto = true`, обновляет выравнивание. |
+
+### События
+
+| Событие | Описание |
 |---|---|
-| `void StartTypingEffect()` | Запускает таймер. Сбрасывает текущую строку. Повторный вызов перезапускает эффект. |
-| `void StopTypingEffect()`  | Останавливает таймер. Текст на экране **сохраняется**. |
+| `FOnAllAllowedCharsIsEndTypingEvent OnAllAllowedCharsIsEndTyping` | Вызывается при завершении печати всей строки `AllowedChars` в последовательном режиме. |
 
 ### Настраиваемые параметры
 
 | Переменная | Тип | По умолчанию | Описание |
 |---|---|---|---|
-| `TypingInterval`  | `float` | `0.05f` | Интервал между символами (сек). Минимум `0`. |
-| `MaxLineLength`   | `int32` | `40`    | Макс. длина видимой строки. Минимум `1`. |
-| `AllowedChars`    | `FString` | `ABCD1234!@#$` | Алфавит случайных символов. Пустая строка отключает генерацию. |
-| `DisplayText`     | `UTextBlock*` | — | Привязывается через `BindWidget` в Designer. |
+| `TypingInterval` | `float` | `0.05f` | Интервал между символами (сек). Минимум `0`. |
+| `MaxLineLength` | `int32` | `40` | Макс. длина видимой строки. Минимум `1`. |
+| `AllowedChars` | `FString` | `ABCD1234!@#$` | Алфавит или текст для вывода. Пустая строка отключает генерацию. |
+| `CurrentDirection` | `ETypingDirection` | `LeftToRight` | Направление печати. |
+| `bRandomIsActive` | `bool` | `false` | Режим работы: `true` — случайный, `false` — последовательный. |
+| `bJustifyIsAuto` | `bool` | `false` | Автоматическое управление выравниванием текста. |
+| `bUseAutoStopTyping` | `bool` | `false` | Автоматическая остановка печати по окончании вывода набора символов (только в последовательном режиме). |
+| `DisplayText` | `UTextBlock*` | — | Привязывается через `BindWidget` в Designer. |
 
 ---
 
-## ⚙️ Примеры алфавитов
+## ⚙️ Примеры конфигураций
 
-| Задача | `AllowedChars` |
-|---|---|
-| Бинарный поток | `TEXT("01")` |
-| HEX-дамп | `TEXT("0123456789ABCDEF")` |
-| «Хакерский» набор | `TEXT("ABCD1234!@#$")` |
-| Только цифры | `TEXT("0123456789")` |
-| Кириллица | `TEXT("АБВГДЕЖЗИКЛМНОПРСТ")` |
+### Пример 1: "Хакерский" терминал (случайный режим)
+
+```cpp
+Widget->AllowedChars    = TEXT("0123456789ABCDEF");
+Widget->bRandomIsActive = true;
+Widget->TypingInterval  = 0.02f;
+Widget->MaxLineLength   = 80;
+Widget->StartTypingEffect(true, true);
+```
+
+### Пример 2: Вывод конкретного текста (последовательный режим)
+
+```cpp
+Widget->AllowedChars       = TEXT("SYSTEM INITIALIZED...");
+Widget->bRandomIsActive    = false;
+Widget->bUseAutoStopTyping = true;
+Widget->TypingInterval     = 0.05f;
+Widget->StartTypingEffect(false, true);
+```
+
+### Пример 3: Двунаправленная "бегущая строка"
+
+```cpp
+// Запуск слева направо
+Widget->CurrentDirection = ETypingDirection::LeftToRight;
+Widget->StartTypingEffect(true, true);
+
+// Через 5 секунд — переключение на справа налево
+GetWorldTimerManager().SetTimerForNextTick([Widget]()
+{
+    Widget->ChangeDirection();
+});
+```
 
 ---
 
@@ -144,10 +225,8 @@ if (UTypingEffectWidget* Widget = CreateWidget<UTypingEffectWidget>(GetWorld(), 
 - **Потокобезопасность**: все методы вызываются в GameThread.
 - **Null-safety**: `DisplayText == nullptr` и пустой `AllowedChars` обрабатываются без крашей.
 - **Нет NaN/Inf**: в логике нет делений, `FMath::Max(TypingInterval, 0.f)` защищает от отрицательных значений.
-- **Производительность**: `RemoveAt(0, 1)` имеет сложность `O(N)`, но при `MaxLineLength ≤ 200`
-  это незаметно даже при 60 FPS.
-- **Ограничения**: виджет не поддерживает многострочный режим «из коробки» —
-  при необходимости расширьте `UpdateDisplay()` до `TArray<FString>`.
+- **Производительность**: `RemoveAt(0, 1)` и `InsertAt(0, ...)` имеют сложность `O(N)`, но при `MaxLineLength ≤ 200` это незаметно даже при 60 FPS.
+- **Ограничения**: виджет не поддерживает многострочный режим «из коробки» — при необходимости расширьте `UpdateDisplay()` до `TArray<FString>`.
 
 ---
 
@@ -156,8 +235,11 @@ if (UTypingEffectWidget* Widget = CreateWidget<UTypingEffectWidget>(GetWorld(), 
 - Экран загрузки в стиле «взлом системы» в проектах жанра cyberpunk.
 - Индикатор активности ИИ-ассистента (NeuroCore-модуль UnrealEssence).
 - Фоновая анимация терминалов в PCG-локациях.
+- Вывод диалогов NPC с эффектом печати.
+- Декоративные элементы интерфейса в sci-fi играх.
 
 ---
+
 ## 📄 Лицензия
 
 Распространяется в рамках лицензии проекта **UnrealEssence**.
