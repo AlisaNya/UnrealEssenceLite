@@ -46,7 +46,7 @@ void UTypingEffectWidget::StartTypingEffect(bool bRandomize, bool bStartFromClea
 			TypingTimerHandle,
 			this,
 			&UTypingEffectWidget::AddCharacter,
-			FMath::Max(TypingInterval, 0.f),
+			FMath::Max(TypingInterval, 0.001f),
 			true
 		);
 	}
